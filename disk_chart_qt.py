@@ -187,12 +187,27 @@ class MyFrame(QtWidgets.QGraphicsView):
         #self.fitInView( self.scene().itemsBoundingRect(), QtCore.Qt.KeepAspectRatio )
         self.pen = QtGui.QPen(QtGui.QColor(QtCore.Qt.black))
         self.setAcceptDrops(True)
+        #self.setMouseTracking(True)
+
 
         self.scale_factor = 1.0
         self.elements_stack = Stack()
 
 
         #self.scene().setAcceptedMouseButtons(0)
+
+    def mousePressEvent(self, event):
+        print("frame mouse press", event)
+        self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+        super(MyFrame, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        print("frame mouse release", event)
+        self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+        super(MyFrame, self).mouseReleaseEvent(event)
+
+    #def mouseMoveEvent(self, event):
+        #print("frame move", event)
 
     def reset_stack(self):
         self.elements_stack.clear()
@@ -262,12 +277,6 @@ class MyFrame(QtWidgets.QGraphicsView):
             self.zoom(angle / WHEEL_SCALING_FACTOR)
         event.accept()
 
-    def dragMoveEvent(self, event):
-        print("drag", event)
-        
-    def mouseReleaseEvent(self, event):
-        print("Frame: mouseReleaseEvent")
-        super(MyFrame, self).mouseReleaseEvent(event)
 
 
 
@@ -313,16 +322,17 @@ class MyEllipse(QtWidgets.QGraphicsEllipseItem):
         
         self.setEnabled(True)
         #self.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable, True)
-        self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, True)
+        #self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, False)
         #self.setFlag(QtWidgets.QGraphicsItem.ItemIsFocusable, True)
 
 
-    def mousePressEvent(self, event):
-        print("press", event)
+    #def mousePressEvent(self, event):
+        #self.parent.mousePressEvent(event)
+     #   print("press", event)
     
-    def mouseReleaseEvent(self, event):
-        # Do your stuff here.
-        print("release", event)        
+    #def mouseReleaseEvent(self, event):
+     #   # Do your stuff here.
+     #   print("release", event)
         #return QtGui.QGraphicsEllipseItem.mouseReleaseEvent(self, event)
 
     def mouseDoubleClickEvent(self, event):
@@ -333,9 +343,9 @@ class MyEllipse(QtWidgets.QGraphicsEllipseItem):
         else: #double click on sector -> go to sector
             self.parent.draw_new(self.element)
 
-    def hoverMoveEvent(self, event):
-        # Do your stuff here.        
-        print("hover", self.name, event)
+    #def hoverMoveEvent(self, event):
+    #    # Do your stuff here.
+    #    print("hover", self.name, event)
 
     def contextMenuEvent(self, event):
         print("context", event)
@@ -385,8 +395,10 @@ if __name__ == '__main__':
     #frame.draw_diagram(file_scanner.scan("/mnt/MEDIA"))
     #frame.draw_diagram(file_scanner.scan("/home/pavel/Downloads"))
 
+
     window.show()
-    window.scan_path("~/Downloads")
+    if len(sys.argv) == 2:
+        window.scan_path(sys.argv[1])
     #frame.show()
     
     sys.exit(app.exec_())
