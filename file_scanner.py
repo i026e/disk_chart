@@ -60,7 +60,7 @@ class Element:
         if self.parent is not None:
             self.parent.resize(size_delta)
 
-    def delete(self):
+    def delete(self, on_error = print):
         try:
             """
             if self.is_file:
@@ -74,8 +74,11 @@ class Element:
                 while self in self.parent.children:
                     self.parent.children.remove(self)
 
+            return True
+
         except Exception as e:
-            print(e)
+            on_error(e)
+        return False
 
     def __repr__(self):
         lines = ["-"*self.level + self.name + " ["  + str(self.size) + "]"]
@@ -84,42 +87,46 @@ class Element:
             
         return os.linesep.join(lines)
         
-def get_total_size(path):
+def get_total_size(path, on_error = print):
     size = 0
     try:
         for root, dirs, files in os.walk(path):
             size += sum(os.path.getsize(os.path.join(root, name)) for name in files)
     except Exception as e:
-        print(e)
+        on_error(e)
     finally:
         return size
         
+def stab(*args, **kwargs):
+    pass
 
-def rec_scan(path_obj, level):
-    #file
-    if path_obj.is_file(follow_symlinks=FOLLOW_SYMLINKS_FILES):
-        size = os.path.getsize(path_obj.path)
-        return Element(path_obj.name, level, size, True)
-    
-    #directory    
-    elif path_obj.is_dir(follow_symlinks=FOLLOW_SYMLINKS_DIRS):
-        elm = Element(path_obj.name, level, 0, False)
-        
-        if level >= MAX_LEVEL:
-            size = get_total_size(path_obj.path)
-            elm.size = size            
-        else:
-            try:
-                for obj in os.scandir(path_obj.path):
-                    child = rec_scan(obj, level + 1)                    
-                    elm.add_child(child)
-            except Exception as e:
-                print(e)
-            
-        return elm 
-            
-        
-def scan(root):
+def scan(root, on_progress = stab, on_error = print):
+    #recursion
+    def rec_scan(path_obj, level):
+        # report progress
+        on_progress(path_obj.path)
+
+        # file
+        if path_obj.is_file(follow_symlinks=FOLLOW_SYMLINKS_FILES):
+            size = os.path.getsize(path_obj.path)
+            return Element(path_obj.name, level, size, True)
+
+        # directory
+        elif path_obj.is_dir(follow_symlinks=FOLLOW_SYMLINKS_DIRS):
+            elm = Element(path_obj.name, level, 0, False)
+
+            if level >= MAX_LEVEL:
+                size = get_total_size(path_obj.path, on_error)
+                elm.size = size
+            else:
+                try:
+                    for obj in os.scandir(path_obj.path):
+                        child = rec_scan(obj, level + 1)
+                        elm.add_child(child)
+                except Exception as e:
+                    on_error(e)
+            return elm
+
     root = os.path.expanduser(root)
     if not os.path.exists(root):
         return None
@@ -129,7 +136,8 @@ def scan(root):
     root_element = Element(root, 0, 0, is_file = False)
     
     for child in os.scandir(root):        
-        root_element.add_child(rec_scan(child, level = 1))
+        root_element.add_child(rec_scan(child,
+                                        level = 1))
     
        
         
@@ -143,5 +151,5 @@ def scan(root):
         
 
 if __name__ == "__main__":
-    print(scan("/home/pavel/Downloads"))
+    print(scan("~/Downloads"))
 

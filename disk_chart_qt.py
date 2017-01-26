@@ -19,6 +19,9 @@ from utils import in_range, pretty_size
 from file_manager import open_folder
 from stack import Stack
 
+
+import time
+
 MAX_BYTE = 255
 QT_ANGLE_MULT = 16 # qt measures angles in (degrees / 16)
 
@@ -162,15 +165,60 @@ class MyWindow(QtWidgets.QMainWindow):
         #esponse = QtWidgets.QMessageBox.aboutQt(self, "About Qt")
 
     def scan_path(self, path):
-        self.statusBar().showMessage('Scanning ' + path)
+        def on_progress(scan_path):
+            self.statusBar().showMessage('Scanning ' + scan_path)
+
+        def on_result(root_element):
+            self.setWindowTitle(self.path)
+            self.frame.reset_stack()
+            self.frame.draw_new(root_element)
+            self.statusBar().showMessage('Ready')
+
         self.path = path
-        self.setWindowTitle(path)
 
-        root = file_scanner.scan(path)
-        self.frame.reset_stack()
-        self.frame.draw_new(root)
+        # create Worker
+        self.scanner = Scanner(self.path, on_progress, on_result)
+        self.scanner.start()
 
-        self.statusBar().showMessage('Ready')
+
+
+
+class Scanner(QtCore.QObject):
+    finished = QtCore.pyqtSignal()
+    progress = QtCore.pyqtSignal(str)
+    result = QtCore.pyqtSignal(object)
+
+    def __init__(self, scan_path, on_progress, on_result, parent = None):
+        super(Scanner, self).__init__(parent)
+        self.scan_path = scan_path
+
+        # Create Thread
+        self.thread = QtCore.QThread()
+
+        #Connect Worker`s Signals to Form method slots to post data.
+        self.progress.connect(on_progress)
+        self.result.connect(on_result)
+
+
+    @QtCore.pyqtSlot()
+    def scan(self): # A slot takes no params
+        root = file_scanner.scan(self.scan_path,
+                                 on_progress = lambda x: self.progress.emit(str(x)),
+                                 on_error=     lambda x: self.progress.emit(str(x)))
+
+        self.result.emit(root)
+        self.finished.emit()
+
+    def start(self):
+        # Move the Worker object to the Thread object
+        self.moveToThread(self.thread)
+        # Connect Worker Signals to the Thread slots
+        self.finished.connect(self.thread.quit)
+        # Connect Thread started signal to Worker operational slot method
+        self.thread.started.connect(self.scan)
+        #Start the thread
+        self.thread.start()
+
 
         
 class MyFrame(QtWidgets.QGraphicsView):
