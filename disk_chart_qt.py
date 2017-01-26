@@ -82,7 +82,7 @@ class MyWindow(QtWidgets.QMainWindow):
         self.path = None
         self.resize(640, 480)
 
-        self.setWindowTitle('Select Path')
+        self.setWindowTitle(program_info.PROGRAM_NAME)
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         self.frame = MyFrame(self)
