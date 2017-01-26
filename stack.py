@@ -50,3 +50,6 @@ class Stack:
             self.stack_backward.append(self.current)
             self.current = self.stack_forward.pop(-1)
             return self.current
+
+    def get_current(self):
+        return self.current

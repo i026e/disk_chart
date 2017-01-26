@@ -10,8 +10,8 @@ import sys
 
 FOLLOW_SYMLINKS_FILES = False
 FOLLOW_SYMLINKS_DIRS = False
-
 MAX_LEVEL = 100
+
 
 class Element:
     def __init__(self, name, level, size = 0, is_file = False):        
@@ -62,12 +62,10 @@ class Element:
 
     def delete(self, on_error = print):
         try:
-            """
             if self.is_file:
                 os.remove(self.path())
             else:
                 os.rmdir(self.path())
-            """
 
             if self.parent is not None:
                 self.parent.resize(-self.size)

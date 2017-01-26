@@ -70,7 +70,7 @@ def files_to_sectors(root):
             start_angle += child_span       
 
 def tooltip_text(elm):
-    return "<b>{name}</b> <br>{size}".format(name = elm.name,
+    return "<b>{name}</b> <br>{size}".format(name = elm.path(),
                                              size=pretty_size(elm.size))
 def central_text(elm):
     return "<center><b>{size}</b></center>".format(size=pretty_size(elm.size))
@@ -126,10 +126,11 @@ class MyWindow(QtWidgets.QMainWindow):
 
         menu.addAction(action)
         
-    
+    """
     def mouseReleaseEvent(self, event):
         print("View: mouseReleaseEvent")
         super(MyWindow, self).mouseReleaseEvent(event)
+    """
 
     def dirOpenEvent(self, event):
         path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select", self.path)
@@ -220,7 +221,6 @@ class Scanner(QtCore.QObject):
         self.thread.start()
 
 
-        
 class MyFrame(QtWidgets.QGraphicsView):
     def __init__( self, parent = None ):
         super(MyFrame, self).__init__(parent)
@@ -268,6 +268,10 @@ class MyFrame(QtWidgets.QGraphicsView):
         elm = self.elements_stack.full_back()
         self._draw_diagram(elm)
 
+    def redraw(self):
+        elm = self.elements_stack.get_current()
+        self._draw_diagram(elm)
+
     def draw_stack_back(self):
         elm = self.elements_stack.go_back()
         self._draw_diagram(elm)
@@ -278,12 +282,11 @@ class MyFrame(QtWidgets.QGraphicsView):
 
         
     def _draw_diagram(self, root):
-        self.scene().clear()
-
-        if (root is not None) :
-            root_level = root.level
+        if root is not None:
+            self.scene().clear()
             squares = {}
-            #print(root.name)
+
+            #print(root.name, root.level)
 
             for (elm, level, start_angle, span_angle) in files_to_sectors(root):
                 if level not in squares:
@@ -305,9 +308,10 @@ class MyFrame(QtWidgets.QGraphicsView):
                     text.setZValue(CHART_MAX_LAYERS + 1)
                     self.scene().addItem(text)
 
-
-
                 self.scene().addItem(item)
+                self.scene().update()
+                QtWidgets.QApplication.processEvents()
+                #time.sleep(0.1) # nice animation
         
     def zoom(self, steps):
         factor = pow(CHART_ZOOM_FACTOR, steps)
@@ -324,9 +328,6 @@ class MyFrame(QtWidgets.QGraphicsView):
             angle = event.angleDelta().x() + event.angleDelta().y()
             self.zoom(angle / WHEEL_SCALING_FACTOR)
         event.accept()
-
-
-
 
 class MySquare(QtCore.QRectF):
     def __init__(self, scene, side):
@@ -358,10 +359,10 @@ class MyText(QtWidgets.QGraphicsTextItem):
 
         
 class MyEllipse(QtWidgets.QGraphicsEllipseItem):    
-    def __init__(self, parent, element, *args, central = False, **kwargs):
+    def __init__(self, frame, element, *args, central = False, **kwargs):
         super(MyEllipse, self).__init__(*args, **kwargs)
 
-        self.parent = parent
+        self.frame = frame
         self.element = element
         self.central = central
         #self.setAcceptHoverEvents(True)
@@ -374,26 +375,14 @@ class MyEllipse(QtWidgets.QGraphicsEllipseItem):
         #self.setFlag(QtWidgets.QGraphicsItem.ItemIsFocusable, True)
 
 
-    #def mousePressEvent(self, event):
-        #self.parent.mousePressEvent(event)
-     #   print("press", event)
-    
-    #def mouseReleaseEvent(self, event):
-     #   # Do your stuff here.
-     #   print("release", event)
-        #return QtGui.QGraphicsEllipseItem.mouseReleaseEvent(self, event)
-
     def mouseDoubleClickEvent(self, event):
         print("double click", event, self.central)
 
         if self.central and self.element.parent is not None: # double click on center -> go to parent
-            self.parent.draw_new(self.element.parent)
+            self.frame.draw_new(self.element.parent)
         else: #double click on sector -> go to sector
-            self.parent.draw_new(self.element)
+            self.frame.draw_new(self.element)
 
-    #def hoverMoveEvent(self, event):
-    #    # Do your stuff here.
-    #    print("hover", self.name, event)
 
     def contextMenuEvent(self, event):
         print("context", event)
@@ -409,7 +398,7 @@ class MyEllipse(QtWidgets.QGraphicsEllipseItem):
 
 
         menu.exec(event.screenPos())
-        #return True
+        return event.accept()
 
     def elmFileManagerEvent(self, event):
         open_folder(self.element.path())
@@ -421,34 +410,33 @@ class MyEllipse(QtWidgets.QGraphicsEllipseItem):
         message = "<b>Delete {type_}</b><br>{fpath} <b>?</b>".format(type_ = type_,
                                                                    fpath = fpath)
 
-        response = QtWidgets.QMessageBox.question(self.parent, "Message",
+        response = QtWidgets.QMessageBox.question(self.frame, "Message",
                      message, QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Cancel)
 
         if response == QtWidgets.QMessageBox.Ok:
-            self.element.delete()
             if self.central:
-                self.parent.draw_diagram(self.element.parent)
+                #create copy of list that will be changed
+                children = [child for child in self.element.children]
+                for child in children:
+                    child.delete()
             else:
-                self.parent.draw_diagram(None, update = True)
+                self.element.delete()
+
+            self.frame.redraw()
             #event.accept()
-        else:
-            print("no")
+        #else:
+            #print("no")
             #event.ignore()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = MyWindow()
-    #frame = MyFrame(window)
-
-    #frame.draw_diagram(file_scanner.scan("/mnt/MEDIA"))
-    #frame.draw_diagram(file_scanner.scan("/home/pavel/Downloads"))
 
 
     window.show()
     if len(sys.argv) == 2:
         window.scan_path(sys.argv[1])
-    #frame.show()
-    
+
     sys.exit(app.exec_())
 
 
